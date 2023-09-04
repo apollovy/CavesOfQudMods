@@ -1,0 +1,9 @@
+{
+	"id": "Apollov.UI.VisibleCombatObjects",
+	"loadorder": 0,
+	"title": "{{W|Apollov.UI.VisibleCombatObjects}}",
+	"description": "Apollov.UI.VisibleCombatObjects",
+	"tags": "World,UX,Cosmetic",
+	"version": "0.1",
+	"author": "apollov"
+}
