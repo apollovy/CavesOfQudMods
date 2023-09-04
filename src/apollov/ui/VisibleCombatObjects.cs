@@ -31,9 +31,8 @@ namespace Apollov.UI
 
     public void UpdateItems(XRLCore core)
     {
-      var combatObjects = The.Player.GetVisibleCombatObjects()
-        .Where((GameObject go) => go.IsVisible());
-      finder.UpdateContext(this, combatObjects);
+      var objects = The.Player.CurrentZone.FindObjects(go => go.IsVisible());
+      finder.UpdateContext(this, objects);
       SingletonWindowBase<NearbyItemsWindow>.instance.UpdateGameContext();
     }
 
@@ -47,12 +46,35 @@ namespace Apollov.UI
 
   public class DistanceSorter : ObjectFinder.Sorter
   {
-        readonly XRLCore.SortObjectBydistanceToPlayer Sorter = new XRLCore.SortObjectBydistanceToPlayer();
+    readonly XRLCore.SortObjectBydistanceToPlayer Sorter = new XRLCore.SortObjectBydistanceToPlayer();
 
-        public override int Compare((GameObject go, ObjectFinder.Context context) a, (GameObject go, ObjectFinder.Context context) b)
-        {
-            var result = Sorter.Compare(a.go, b.go);
-            return result;
-        }
+    public override int Compare((GameObject go, ObjectFinder.Context context) a, (GameObject go, ObjectFinder.Context context) b)
+    {
+      var aIsCombat = a.go.IsCombatObject();
+      var bIsCombat = b.go.IsCombatObject();
+      var aIsTakeable = a.go.Takeable;
+      var bIsTakeable = b.go.Takeable;
+      if (aIsCombat && !bIsCombat)
+      {
+        return -1;
+      }
+      else if (bIsCombat && !aIsCombat)
+      {
+        return 1;
+      }
+      else if (aIsTakeable && !bIsTakeable)
+      {
+        return -1;
+      }
+      else if (bIsTakeable && !aIsTakeable)
+      {
+        return 1;
+      }
+      else
+      {
+        var result = Sorter.Compare(a.go, b.go);
+        return result;
+      }
     }
+  }
 }
