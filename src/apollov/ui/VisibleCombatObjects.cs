@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using System.Reflection;
 using Qud.UI;
 using XRL;
@@ -7,6 +6,9 @@ using XRL.Core;
 using XRL.UI;
 using XRL.Wish;
 using XRL.World;
+using HarmonyLib;
+using XRL.UI.Framework;
+using Qud.API;
 
 namespace Apollov.UI
 {
@@ -74,6 +76,22 @@ namespace Apollov.UI
       {
         var result = Sorter.Compare(a.go, b.go);
         return result;
+      }
+    }
+  }
+
+  [HarmonyPatch(typeof(NearbyItemsWindow), nameof(NearbyItemsWindow.OnSelect))]
+  public static class HarmonyPatcher
+  {
+    static void Prefix(FrameworkDataElement e)
+    {
+      if (e is ObjectFinderLine.Data data)
+      {
+        bool distant = The.Player.DistanceTo(data.go) > 1;
+        GameManager.Instance.gameQueue.queueSingletonTask("nearby items twiddle", delegate
+        {
+                EquipmentAPI.TwiddleObject(data.go, Distant: distant);
+        });
       }
     }
   }
