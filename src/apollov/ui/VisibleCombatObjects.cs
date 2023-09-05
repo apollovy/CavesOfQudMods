@@ -9,6 +9,7 @@ using XRL.World;
 using HarmonyLib;
 using XRL.UI.Framework;
 using Qud.API;
+using System.Configuration;
 
 namespace Apollov.UI
 {
@@ -81,7 +82,7 @@ namespace Apollov.UI
   }
 
   [HarmonyPatch(typeof(NearbyItemsWindow), nameof(NearbyItemsWindow.OnSelect))]
-  public static class HarmonyPatcher
+  public static class Patch_NearbyItemsWindow_OnSelect
   {
     static void Prefix(FrameworkDataElement e)
     {
@@ -92,6 +93,18 @@ namespace Apollov.UI
         {
                 EquipmentAPI.TwiddleObject(data.go, Distant: distant);
         });
+      }
+    }
+  }
+
+  [HarmonyPatch(typeof(XRLGame), nameof(XRLGame.LoadGame))]
+  class Patch_XRL_Core_XRLCore
+  {
+    static void Postfix()
+    {
+      if (Options.GetOption("Apollov_VisibleCombatObjects").EqualsNoCase("Yes"))
+      {
+        WishManager.HandleWish("Apollov.UI.VisibleCombatObjects");
       }
     }
   }
