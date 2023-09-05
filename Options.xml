@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <options>
-  <option ID="Apollov_VisibleCombatObjects" DisplayText="Show all objects in nearby objects window." Category="Apollov" Type="Checkbox" Default="No"></option>
+  <option ID="Apollov_VisibleCombatObjects" DisplayText="Show all objects in nearby objects window." Category="Mods: Apollov" Type="Checkbox" Default="No"></option>
 </options>
