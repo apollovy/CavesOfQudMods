@@ -35,7 +35,7 @@ namespace Apollov.UI
     {
       var objects = The.Player.CurrentZone.FindObjects(go => go.IsVisible());
       finder.UpdateContext(this, objects);
-      SingletonWindowBase<NearbyItemsWindow>.instance.UpdateGameContext();
+      SingletonWindowBase<NearbyItemsWindow>.instance?.UpdateGameContext();
     }
 
     [WishCommand("Apollov.UI.VisibleCombatObjects")]
