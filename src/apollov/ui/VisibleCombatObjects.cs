@@ -44,6 +44,16 @@ namespace Apollov.UI
       ObjectFinder.instance.Add(this);
       typeof(ObjectFinder).GetField("activeSorter", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).SetValue(ObjectFinder.instance, new DistanceSorter());
     }
+
+    [WishCommand("Apollov.UI.PrintFungalCure")]
+    public void PrintFungalCure()
+    {
+      The.Player.ApplyEffect(new XRL.World.Effects.FungalCureQueasy(100));
+      // The.Game.SetStringGameState("FungalCureWorm", "bear jerky");
+      // The.Game.SetStringGameState("FungalCureWormDisplay", "Bear Jerky");
+      // XRL.Messages.MessageQueue.AddPlayerMessage(The.Game.GetStringGameState("FungalCureWorm", "Ouch"));
+      // XRL.Messages.MessageQueue.AddPlayerMessage(The.Game.GetStringGameState("FungalCureWormDisplay", "NOOOO"));
+    }
   }
 
   public class DistanceSorter : ObjectFinder.Sorter
