@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using Qud.UI;
 using XRL;
@@ -13,46 +14,69 @@ using Qud.API;
 namespace Apollov.UI
 {
   [HasWishCommand]
+  [HasOptionFlagUpdate]
   public class VisibleCombatObjects : ObjectFinder.Context
   {
+    private static VisibleCombatObjects _instance;
+    private static readonly List<GameObject> _noObjects = new List<GameObject>();
+    private static readonly DistanceSorter _sorter = new DistanceSorter();
     public VisibleCombatObjects() {
+      _instance = this;
       GameManager.Instance.gameQueue.queueSingletonTask("VisibleCombatObjectsInit", () => UpdateItems(The.Core));
     }
 
     public override void Enable()
     {
-      XRLCore.RegisterOnBeginPlayerTurnCallback(new Action<XRLCore>(UpdateItems));
-      XRLCore.RegisterOnEndPlayerTurnCallback(new Action<XRLCore>(UpdateItems), true);
+      XRLCore.RegisterOnBeginPlayerTurnCallback(UpdateItems);
+      UpdateItems(The.Core);
     }
 
     public override void Disable()
     {
-      XRLCore.RemoveOnBeginPlayerTurnCallback(new Action<XRLCore>(UpdateItems));
-      XRLCore.RemoveOnEndPlayerTurnCallback(new Action<XRLCore>(UpdateItems), true);
+      XRLCore.RemoveOnBeginPlayerTurnCallback(UpdateItems);
+      UpdateItems(The.Core);
     }
 
     public void UpdateItems(XRLCore core)
     {
-      var objects = The.Player.CurrentZone.FindObjects(go => go.IsVisible());
-      finder.UpdateContext(this, objects);
+      var objects = Options.VisibleCombatObjects ? The.Player.CurrentZone.FindObjects(go => go.IsVisible()) : _noObjects;
+      finder?.UpdateContext(this, objects);
       SingletonWindowBase<NearbyItemsWindow>.instance?.UpdateGameContext();
     }
 
-    [WishCommand("Apollov.UI.VisibleCombatObjects")]
-    public void Wish()
+    [OptionFlagUpdate]
+    public static void UpdateFlags()
     {
-      ObjectFinder.instance.Add(this);
-      typeof(ObjectFinder).GetField("activeSorter", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).SetValue(ObjectFinder.instance, new DistanceSorter());
+      if (_instance == null)
+      {
+        _instance = new VisibleCombatObjects();
+      }
+
+      if (ObjectFinder.instance != null)
+      {
+        try
+        {
+          if (Options.VisibleCombatObjects)
+          {
+            ObjectFinder.instance.Add(_instance);
+          }
+          else
+          {
+            ObjectFinder.instance.Remove(_instance);
+          }
+        }
+        catch (ArgumentException)
+        {
+          // adding or removal not required. Well, okay.
+        }
+        typeof(ObjectFinder).GetField("activeSorter", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).SetValue(ObjectFinder.instance, _sorter);
+      }
     }
 
     [WishCommand("Apollov.UI.PrintFungalCure")]
     public void PrintFungalCure()
     {
       The.Player.ApplyEffect(new XRL.World.Effects.FungalCureQueasy(100));
-      // The.Game.SetStringGameState("FungalCureWorm", "bear jerky");
-      // The.Game.SetStringGameState("FungalCureWormDisplay", "Bear Jerky");
-      // XRL.Messages.MessageQueue.AddPlayerMessage(The.Game.GetStringGameState("FungalCureWorm", "Ouch"));
-      // XRL.Messages.MessageQueue.AddPlayerMessage(The.Game.GetStringGameState("FungalCureWormDisplay", "NOOOO"));
     }
   }
 
@@ -107,20 +131,8 @@ namespace Apollov.UI
         bool distant = The.Player.DistanceTo(data.go) > 1;
         GameManager.Instance.gameQueue.queueSingletonTask("nearby items twiddle", delegate
         {
-                EquipmentAPI.TwiddleObject(data.go, Distant: distant);
+          EquipmentAPI.TwiddleObject(data.go, Distant: distant);
         });
-      }
-    }
-  }
-
-  [HarmonyPatch(typeof(XRLGame), nameof(XRLGame.LoadGame))]
-  class Patch_XRL_Core_XRLCore
-  {
-    static void Postfix()
-    {
-      if (Options.VisibleCombatObjects)
-      {
-        WishManager.HandleWish("Apollov.UI.VisibleCombatObjects");
       }
     }
   }
