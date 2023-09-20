@@ -13,15 +13,13 @@ using Qud.API;
 
 namespace Apollov.UI
 {
-  [HasWishCommand]
   [HasOptionFlagUpdate]
   public class VisibleCombatObjects : ObjectFinder.Context
   {
-    private static VisibleCombatObjects _instance;
+    private static readonly VisibleCombatObjects _instance = new VisibleCombatObjects();
     private static readonly List<GameObject> _noObjects = new List<GameObject>();
     private static readonly DistanceSorter _sorter = new DistanceSorter();
     public VisibleCombatObjects() {
-      _instance = this;
       GameManager.Instance.gameQueue.queueSingletonTask("VisibleCombatObjectsInit", () => UpdateItems(The.Core));
     }
 
@@ -47,11 +45,6 @@ namespace Apollov.UI
     [OptionFlagUpdate]
     public static void UpdateFlags()
     {
-      if (_instance == null)
-      {
-        _instance = new VisibleCombatObjects();
-      }
-
       if (ObjectFinder.instance != null)
       {
         try
@@ -73,6 +66,11 @@ namespace Apollov.UI
       }
     }
 
+  }
+
+  [HasWishCommand]
+  public class FungalCureQueasyFix
+  {
     [WishCommand("Apollov.UI.PrintFungalCure")]
     public void PrintFungalCure()
     {
