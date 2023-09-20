@@ -134,4 +134,41 @@ namespace Apollov.UI
       }
     }
   }
+
+  public class Apollov_Commandlistener : IPart
+  {
+    private static readonly string _mobileTraderCommand = "Apollov.UI.VisibleCombatObjects.MobileTrader";
+
+    public override void Register(GameObject Object)
+    {
+      Object.RegisterPartEvent(this, _mobileTraderCommand);
+      base.Register(Object);
+    }
+
+    public override bool FireEvent(XRL.World.Event E)
+    {
+      if (E.ID == _mobileTraderCommand)
+      {
+        TradeUI.ShowTradeScreen(GameObject.create("Apollov.UI.MobileTrader"));
+      }
+      return base.FireEvent(E);
+    }
+  }
+
+  [PlayerMutator]
+  [HasCallAfterGameLoaded]
+  public class Apollov_PlayerMutator : IPlayerMutator
+  {
+    public void mutate(GameObject player)
+    {
+      player.AddPart<Apollov_Commandlistener>();
+    }
+
+    [CallAfterGameLoaded]
+    private static void RequirePart()
+    {
+      GameObject player = XRLCore.Core?.Game?.Player?.Body;
+      player?.RequirePart<Apollov_Commandlistener>();
+    }
+  }
 }

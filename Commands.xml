@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<commands>
+  <command ID="Apollov.UI.VisibleCombatObjects.MobileTrader" DisplayText="Quick sell" Category="Mods: Apollov"/>
+</commands>

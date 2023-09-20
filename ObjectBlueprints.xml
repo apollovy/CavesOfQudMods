@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<objects>
+  <object Name="Apollov.UI.MobileTrader" Inherits="PhysicalObject">
+    <part Name="Inventory" />
+    <inventoryobject Blueprint="Copper Nugget" Number="99" />
+    <inventoryobject Blueprint="Silver Nugget" Number="99" />
+    <inventoryobject Blueprint="Gold Nugget" Number="99" />
+  </object>
+</objects>
