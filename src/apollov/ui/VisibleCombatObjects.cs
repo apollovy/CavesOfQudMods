@@ -10,6 +10,8 @@ using XRL.World;
 using HarmonyLib;
 using XRL.UI.Framework;
 using Qud.API;
+using ConsoleLib.Console;
+using XRL.Messages;
 
 namespace Apollov.UI
 {
@@ -19,7 +21,8 @@ namespace Apollov.UI
     private static readonly VisibleCombatObjects _instance = new VisibleCombatObjects();
     private static readonly List<GameObject> _noObjects = new List<GameObject>();
     private static readonly DistanceSorter _sorter = new DistanceSorter();
-    public VisibleCombatObjects() {
+    public VisibleCombatObjects()
+    {
       GameManager.Instance.gameQueue.queueSingletonTask("VisibleCombatObjectsInit", () => UpdateItems(The.Core));
     }
 
@@ -112,7 +115,7 @@ namespace Apollov.UI
     }
   }
 
-  
+
   public static class Options
   {
     public static bool VisibleCombatObjects => GetOption("Apollov_VisibleCombatObjects");
@@ -122,7 +125,7 @@ namespace Apollov.UI
   [HarmonyPatch(typeof(NearbyItemsWindow), nameof(NearbyItemsWindow.OnSelect))]
   public static class Patch_NearbyItemsWindow_OnSelect
   {
-    static void Prefix(FrameworkDataElement e)
+    static bool Prefix(FrameworkDataElement e)
     {
       if (e is ObjectFinderLine.Data data)
       {
@@ -132,6 +135,7 @@ namespace Apollov.UI
           EquipmentAPI.TwiddleObject(data.go, Distant: distant);
         });
       }
+      return false;
     }
   }
 
@@ -171,4 +175,64 @@ namespace Apollov.UI
       player?.RequirePart<Apollov_Commandlistener>();
     }
   }
+
+
+  // This one makes pushing "autoexplore" button work as "wait until healed" if HP is not full.
+  [HarmonyPatch(typeof(LegacyKeyMapping), nameof(LegacyKeyMapping.GetNextCommand))]
+  public static class RestBeforeExploringSimplePatch
+  {
+    public static bool Prefix(ref string __result, string[] exclusions = null) 
+    {
+      __result =  LegacyKeyMapping.MapKeyToCommand(Keyboard.getmeta(false), exclusions);
+      if (__result == "CmdAutoExplore" && The.Player.GetStat("Hitpoints").Penalty > 0)
+      {
+        __result = "CmdWaitUntilHealed";
+      }
+      MessageQueue.AddPlayerMessage(string.Format("RestBeforeExploringPatch.Prefix: {0}", __result));
+      return false;
+    }
+  }
+
+  // [HarmonyPatch(typeof(ActionManager), nameof(ActionManager.RunSegment))]
+  // public static class RestBeforeExploringComplicatedPatch
+  // {
+  //   static readonly MethodInfo _clearSeeds = AccessTools.Method(typeof(InfluenceMap), nameof(InfluenceMap.ClearSeeds));
+  //   static readonly List<CodeInstruction> _injectedInstructions = new List<CodeInstruction>() {
+  //     // check for full health
+  //     CodeInstruction.Call(typeof(The), "get_ActionManager"),
+  //     new CodeInstruction(OpCodes.Dup),
+  //   };
+
+  //   static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+  //   {
+  //     var found = false;
+  //     foreach (var instruction in instructions)
+  //     {
+  //       if (instruction.Calls(_clearSeeds))
+  //       {
+  //         foreach (var newInstruction in _injectedInstructions)
+  //         {
+  //           yield return newInstruction;
+  //         }
+  //         // if not full, execute resting
+  //         // else execute what was there
+  //         found = true;
+  //       }
+  //       yield return instruction;
+  //     }
+  //     if (!found)
+  //       throw new Exception("");
+  //   }
+
+  //   private static void Foo()
+  //   {
+  //     var method = typeof(RestBeforeExploringComplicatedPatch).GetMethod(nameof(Bar)).GetMethodBody();
+  //     var ilBytes = method.GetILAsByteArray();
+  //   }
+
+  //   private static void Bar()
+  //   {
+
+  //   }
+  // }
 }
