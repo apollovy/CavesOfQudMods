@@ -10,8 +10,10 @@ using XRL.World;
 using HarmonyLib;
 using XRL.UI.Framework;
 using Qud.API;
-using ConsoleLib.Console;
-using XRL.Messages;
+using System.Reflection.Emit;
+using Genkit;
+using XRL.World.Capabilities;
+using System.Linq;
 
 namespace Apollov.UI
 {
@@ -177,62 +179,70 @@ namespace Apollov.UI
   }
 
 
-  // This one makes pushing "autoexplore" button work as "wait until healed" if HP is not full.
-  [HarmonyPatch(typeof(LegacyKeyMapping), nameof(LegacyKeyMapping.GetNextCommand))]
-  public static class RestBeforeExploringSimplePatch
+  [HarmonyPatch(typeof(ActionManager), nameof(ActionManager.RunSegment))]
+  public static class RestBeforeExploringPatch
   {
-    public static bool Prefix(ref string __result, string[] exclusions = null) 
+    static readonly MethodInfo _clearSeeds = AccessTools.Method(typeof(InfluenceMap), nameof(InfluenceMap.ClearSeeds));
+
+    static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
     {
-      __result =  LegacyKeyMapping.MapKeyToCommand(Keyboard.getmeta(false), exclusions);
-      if (__result == "CmdAutoExplore" && The.Player.GetStat("Hitpoints").Penalty > 0)
+      var found = false;
+      Label? label = null;
+      var instructionsArray = instructions.ToArray();
+      for (var i = 0; i < instructionsArray.Length; i++)
       {
-        __result = "CmdWaitUntilHealed";
+        var instruction = instructionsArray[i];
+        // // [1377 23 - 1377 65]
+        // IL_1834: ldsfld       class [System]System.Diagnostics.Stopwatch XRL.Core.ActionManager::AutomoveTimer
+        // IL_1839: callvirt     instance bool [System]System.Diagnostics.Stopwatch::get_IsRunning()
+        // IL_183e: brfalse      IL_19b8
+        if (instruction.opcode == OpCodes.Ldsfld
+          && instruction.operand.ToString() == "System.Diagnostics.Stopwatch AutomoveTimer")
+        {
+          var nextInstruction = instructionsArray[i + 1];
+          if (nextInstruction.opcode == OpCodes.Callvirt
+            && nextInstruction.operand.ToString() == "Boolean get_IsRunning()"
+            && instructionsArray[i + 2].opcode == OpCodes.Brfalse)
+          {
+            label = generator.DefineLabel();
+            instruction.labels.Add((Label)label);
+            break;
+          }
+        }
       }
-      MessageQueue.AddPlayerMessage(string.Format("RestBeforeExploringPatch.Prefix: {0}", __result));
+      for (var i = 0; i < instructionsArray.Length; i++)
+      {
+        var instruction = instructionsArray[i];
+        if (instruction.Calls(_clearSeeds))
+        {
+          yield return CodeInstruction.Call(typeof(RestBeforeExploringPatch), nameof(WaitUntilHealed));
+          yield return new CodeInstruction(OpCodes.Brtrue, label);
+          found = true;
+        }
+        yield return instruction;
+      }
+      if (!found)
+        throw new Exception("RestBeforeExploringComplicatedPatch was not applied.");
+    }
+    static bool WaitUntilHealed()
+    {
+      if (The.Player.GetStat("Hitpoints").Penalty > 0)
+      {
+        ++The.ActionManager.RestingUntilHealedCount;
+        Loading.SetLoadingStatus("Resting until healed... Turn: " + The.ActionManager.RestingUntilHealedCount.ToString());
+        The.Player.UseEnergy(1000, "Pass");
+        if (The.Player.GetStat("Hitpoints").Penalty <= 0)
+        {
+          AutoAct.Interrupt();
+        }
+        else if (The.ActionManager.RestingUntilHealedCount % 10 == 0)
+        {
+          XRLCore.TenPlayerTurnsPassed();
+          The.Core.RenderBase(false, true);
+        }
+        return true;
+      }
       return false;
     }
   }
-
-  // [HarmonyPatch(typeof(ActionManager), nameof(ActionManager.RunSegment))]
-  // public static class RestBeforeExploringComplicatedPatch
-  // {
-  //   static readonly MethodInfo _clearSeeds = AccessTools.Method(typeof(InfluenceMap), nameof(InfluenceMap.ClearSeeds));
-  //   static readonly List<CodeInstruction> _injectedInstructions = new List<CodeInstruction>() {
-  //     // check for full health
-  //     CodeInstruction.Call(typeof(The), "get_ActionManager"),
-  //     new CodeInstruction(OpCodes.Dup),
-  //   };
-
-  //   static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-  //   {
-  //     var found = false;
-  //     foreach (var instruction in instructions)
-  //     {
-  //       if (instruction.Calls(_clearSeeds))
-  //       {
-  //         foreach (var newInstruction in _injectedInstructions)
-  //         {
-  //           yield return newInstruction;
-  //         }
-  //         // if not full, execute resting
-  //         // else execute what was there
-  //         found = true;
-  //       }
-  //       yield return instruction;
-  //     }
-  //     if (!found)
-  //       throw new Exception("");
-  //   }
-
-  //   private static void Foo()
-  //   {
-  //     var method = typeof(RestBeforeExploringComplicatedPatch).GetMethod(nameof(Bar)).GetMethodBody();
-  //     var ilBytes = method.GetILAsByteArray();
-  //   }
-
-  //   private static void Bar()
-  //   {
-
-  //   }
-  // }
 }
