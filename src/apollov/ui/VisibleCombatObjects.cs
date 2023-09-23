@@ -14,6 +14,7 @@ using System.Reflection.Emit;
 using Genkit;
 using XRL.World.Capabilities;
 using System.Linq;
+using System.Diagnostics;
 
 namespace Apollov.UI
 {
@@ -183,45 +184,39 @@ namespace Apollov.UI
   public static class RestBeforeExploringPatch
   {
     static readonly MethodInfo _clearSeeds = AccessTools.Method(typeof(InfluenceMap), nameof(InfluenceMap.ClearSeeds));
+    static readonly FieldInfo _automoveTimer = AccessTools.Field(typeof(ActionManager), "AutomoveTimer");
+    static readonly MethodInfo _get_IsRunning = AccessTools.Method(typeof(Stopwatch), "get_IsRunning");
 
     static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
     {
-      var found = false;
-      Label? label = null;
+      var clearSeedsCallFound = false;
+      var labelFound = false;
+      var label = generator.DefineLabel();
       var instructionsArray = instructions.ToArray();
       for (var i = 0; i < instructionsArray.Length; i++)
       {
         var instruction = instructionsArray[i];
+        // if (ActionManager.AutomoveTimer.IsRunning)
         // // [1377 23 - 1377 65]
         // IL_1834: ldsfld       class [System]System.Diagnostics.Stopwatch XRL.Core.ActionManager::AutomoveTimer
         // IL_1839: callvirt     instance bool [System]System.Diagnostics.Stopwatch::get_IsRunning()
         // IL_183e: brfalse      IL_19b8
-        if (instruction.opcode == OpCodes.Ldsfld
-          && instruction.operand.ToString() == "System.Diagnostics.Stopwatch AutomoveTimer")
+        if (instruction.LoadsField(_automoveTimer)
+          && instructionsArray[i + 1].Calls(_get_IsRunning)
+          && instructionsArray[i + 2].opcode == OpCodes.Brfalse)
         {
-          var nextInstruction = instructionsArray[i + 1];
-          if (nextInstruction.opcode == OpCodes.Callvirt
-            && nextInstruction.operand.ToString() == "Boolean get_IsRunning()"
-            && instructionsArray[i + 2].opcode == OpCodes.Brfalse)
-          {
-            label = generator.DefineLabel();
-            instruction.labels.Add((Label)label);
-            break;
-          }
+          instruction.labels.Add(label);
+          labelFound = true;
         }
-      }
-      for (var i = 0; i < instructionsArray.Length; i++)
-      {
-        var instruction = instructionsArray[i];
-        if (instruction.Calls(_clearSeeds))
+        else if (instruction.Calls(_clearSeeds))
         {
           yield return CodeInstruction.Call(typeof(RestBeforeExploringPatch), nameof(WaitUntilHealed));
           yield return new CodeInstruction(OpCodes.Brtrue, label);
-          found = true;
+          clearSeedsCallFound = true;
         }
         yield return instruction;
       }
-      if (!found)
+      if (!(clearSeedsCallFound && labelFound))
         throw new Exception("RestBeforeExploringComplicatedPatch was not applied.");
     }
     static bool WaitUntilHealed()
